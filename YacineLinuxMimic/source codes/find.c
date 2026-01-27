@@ -2,76 +2,56 @@
 #include <string.h>
 #include <windows.h>
 
-#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
-#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
-#endif
-
-void enableANSI() {
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD dwMode = 0;
-    GetConsoleMode(hOut, &dwMode);
-    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-    SetConsoleMode(hOut, dwMode);
-}
-
 int main(int argc, char **argv){
-    enableANSI();
-    HANDLE filehandel;
+    HANDLE filehandle;
     WIN32_FIND_DATA ffd;
-    char path[MAX_PATH];
+    char *name=NULL, *type=NULL, *size=NULL, *mtime=NULL, *filepath=argv[argc-1];
+    int   nameFlag=0, typeFlag=0, sizeFlag=0, mtimeFlag=0;
 
-    if(argc==2){
-        strcpy(path, ".\\*");
-    } else {
-        char *lastarg = argv[argc-1];
-        if(lastarg[0]=='-'){
-            strcpy(path, ".\\*");
-        } else { 
-            strcpy(path, lastarg);
-            if(path[strlen(path)-1] != '\\'){
-                strcat(path, "\\");
+    if(argc<2){
+        printf("where [options] [path]");
+    } else{
+        for(int i =1; i<argc; i++){
+            if(!strcmp(argv[i], "-name")&& i + 1 < argc){
+                name = argv[i+1]; nameFlag=1;
             }
-            strcat(path, "*");
+            if(!strcmp(argv[i], "-type")&& i + 1 < argc){
+                type = argv[i+1]; typeFlag=1;
+            }
+            if(!strcmp(argv[i], "-size")&& i + 1 < argc){
+                size = argv[i+1]; sizeFlag=1;
+            }
+            if(!strcmp(argv[i], "-mtime")&& i + 1 < argc){
+                mtime = argv[i+1]; mtimeFlag=1;
+            }
         }
     }
-    char *Filename = argv[1];
 
-    filehandel = FindFirstFile(path, &ffd);
-
-    DWORD attr = GetFileAttributes(argv[1]);
-    if (attr == INVALID_FILE_ATTRIBUTES) {
-        printf("File does not exist\n");
-        return 1;
+    if(argc == 3 || !strcmp(filepath,"./")){
+        strcpy(filepath, ".\\*");
+    } else{
+        strcat(filepath, "\\*");
     }
+    filehandle = FindFirstFile(filepath,&ffd);
 
-    if(INVALID_HANDLE_VALUE == filehandel){
-        switch(GetLastError()){
-            case 3:
-            printf("coudn't find the path");
-            break;
-
-            case 5:
-            printf("Access denied");
-            break;
-
-            case 123:
-            printf("Error in path format");
-            break;
-
-            default:
-            printf("error code:%lu", GetLastError());
-            break;
-        } 
-        return 1;
-    }
     do{
-        if (!strcmp(ffd.cFileName, Filename))
-        {
-            GetFullPathName(Filename,MAX_PATH,path,NULL);
-            printf("\033[32;1m%s\033[0m\n", path);
+        if(!(nameFlag&&sizeFlag&&mtimeFlag&&typeFlag)){
+            printf("no name was provided!");
+            FindClose(filehandle);
+            return 1;
+        } else {
+            if(typeFlag){
+                if (!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && strcmp(ffd.cFileName, Filename)==0)
+                {
+                    GetFullPathName(Filename,MAX_PATH,path,NULL);
+                    printf("\033[32;1m%s\033[0m\n", path);
+                }
+            } else {
+
+            }
         }
-        
-        
-    }while (FindNextFile(filehandel, &ffd));  
-    FindClose(filehandel); 
+    }while(FindNextFile(filehandle, &ffd));
+
+    FindClose(filehandle);
+    return 0;
 }
